@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+	<style type="text/css">
+	body {
+		box-sizing: border-box;
+		padding: 0;
+		margin: 0;
+	}
+	#container {
+		width: 100%;
+		height: 100vh;
+		background: #000;
+	}
+
+	#score {
+		position: absolute;
+		top: 400px;
+		left: 300px;
+		color: red;
+		width: 100px;
+		height: 100px;
+		font-size: 50px;
+	}
+	b {
+		color: blue;
+	}
+	</style>
+</head>
+<body>
+
+<div id="container"></div>
+<div id="score"></div>
+
+<script type="text/javascript">
+
+
+	
+// puzzle codes
+var codes = [
+	'00010203', // 1
+	'00102030', // 2
+	'00011011', // 3
+	'01112021', // 4
+	'00010212', // 5
+	'00102001', // 6
+	'00101112', // 7
+	'10200111', // 8
+	'00011112', // 9
+	'00011121', // 10
+	'10111202', // 11
+	'00102021', // 12
+	'00010210', // 13
+	'00101121', // 14
+	'10110102', // 15
+	'10011121', // 16
+	'00010211', // 17
+	'10110112', // 18
+	'00102011', // 19
+]
+
+var puzzles = {}
+
+for (var i = 0; i < codes.length; i++) {
+	// analyze code
+	var code = codes[i].match(/\w{0,2}/g)
+	code.splice(-1, 1)
+
+	for (var j = 0; j < code.length; j++) {
+		var block = code[j].match(/\w{0,1}/g)
+		block.splice(-1, 1)
+
+		for (var k = 0; k < block.length; k++)
+			block[k] = parseInt(block[k])
+
+		code[j] = block
+	}
+
+	// find width and height of puzzle (max x, max y)
+	var w = h = 0
+	for (var j = 0; j < code.length; j++) {
+		if (code[j][0] > w) w = code[j][0]
+		if (code[j][1] > h) h = code[j][1]
+	}
+
+	var id = i + 1
+	puzzles[id] = {
+		'w': w + 1,
+		'h': h + 1,
+		's': code // shape
+	}
+}
+
+
+// construct lath
+const lw = 10
+const lh = 20
+var lath = []
+
+function reset () {
+	for (var i = 0; i < lh; i++) {
+		lath[i] = []
+		for (var j = 0; j < lw; j++) {
+			lath[i][j] = 0
+		}
+	}
+}
+
+function findMinmax(shape) {
+	var min = lw
+	var max = 0
+	for (var i = 0; i < shape.length; i++) {
+		var x = shape[i][0]
+		if (x > max) max = x
+		if (x < min) min = x
+	}
+	return [min, max]
+}
+function checkMaxDown(shape, sm) {
+	var minmax = findMinmax(shape)
+	var ix = minmax[0] + sm
+	var mx = minmax[1] + sm
+
+	// lay dia hinh phia duoi
+	var geo = []
+	var geoDf = []
+	for (var i = 0; i < shape.length; i++) {
+		geo.push(lh - 1)
+	}
+
+	for (var j = ix, k = 0; j <= mx; j++, k++) {
+		for (var i = 0; i < lh; i++) {
+			if (lath[i][j] == 1) {
+				geo[k] = i - 1
+				break
+			}
+		}
+	}
+
+	// lay khoang cach down toi da
+	var downarr = []
+	for (var i = shape.length - 1, j = 0; i >= 0; i--, j++) {
+		var y = shape[i][1]
+		downarr.push(geo[j] - y)
+	}
+
+
+	var my = Math.min.apply(null, downarr)
+	return my
+}
+
+function checkRowFull(r) {
+	var rows = lath[r]
+	if (!rows) return
+	var c = 0
+	for (var i = 0; i < rows.length; i++) {
+		if (rows[i] == 1) c++
+	}
+	return c == lw
+}
+
+var isPaused= false
+
+function tetrisScore(blockList){
+
+	reset()
+
+	var a = blockList
+	var i = 0
+	// setInterval(() => {
+	// if (!isPaused) {
+	// 	var pc = a[i][0] // puzzle id
+	// 	var sm = a[i][1] // step moves right
+	// 	var zm = 0 // step moves down
+
+	// 	var puzzle = puzzles[pc]
+
+	// 	document.getElementById('score').innerHTML = pc
+
+	// 	// kiem tra vuot qua gioi han chieu ngang
+	// 	if (sm + puzzle.w > lw) {
+	// 		sm = lw - puzzle.w
+	// 	}
+
+	// 	// fill puzzle in map
+	// 	var shape = puzzle.s
+
+	// 	var zm = checkMaxDown(shape, sm)
+
+	// 	for (var j = 0; j < shape.length; j++) {
+	// 		var b = shape[j] // block
+	// 		lath[zm + shape[j][1]][sm + shape[j][0]] = 1
+	// 	}
+
+	// 	draw()
+	// 	i++
+
+	// 	if (i == a.length) {
+	// 		var score = calcScore()
+	// 		document.getElementById('score').innerHTML = score
+	// 		return
+	// 	}
+	// }
+	// }, 1000)
+	var score = 0
+	for (var i = 0; i < a.length; i++) {
+		var pc = a[i][0] // puzzle id
+		var sm = a[i][1] // step moves right
+		var zm = 0 // step moves down
+
+		var puzzle = puzzles[pc]
+
+		// kiem tra vuot qua gioi han chieu ngang
+		if (sm + puzzle.w > lw) {
+			sm = lw - puzzle.w
+		}
+
+		// fill puzzle in map
+		var shape = puzzle.s
+
+		var zm = checkMaxDown(shape, sm)
+
+		for (var j = 0; j < shape.length; j++) {
+			var b = shape[j] // block
+			lath[zm + shape[j][1]][sm + shape[j][0]] = 1
+		}
+
+		ns = calcScore()
+		score += ns
+		if (ns != 0) {
+			console.log(lath)
+		}
+	}
+
+	
+
+	// count all score rows
+	
+
+	return score
+}
+
+function removeLine(tbr) {
+	for (var j = 0; j < tbr.length; j++) {
+		var r = tbr[j]
+		for (var i = 0; i < lath[r].length; i++) {
+			lath[r][i] = 0
+		}
+	}
+
+	console.log(tbr)
+}
+
+function calcScore() {
+	var win = 0
+	var count = 0
+	var score = 0
+	var tbr = []
+	for (var i = lh - 1; i >= 0; i--) {
+		var isFull = checkRowFull(i)
+		if (isFull) {
+			count++
+		} else {
+			if (count == 4) {
+				score += 10
+				count = 0
+				tbr.push(i)
+			} else if (count == 3) {
+				score += 6
+				count = 0
+				tbr.push(i)
+			} else if (count == 2) {
+				score += 3
+				count = 0
+				tbr.push(i)
+			} else if (count == 1) {
+				score += 1
+				count = 0
+				tbr.push(i)
+			}
+		}
+	}
+	removeLine(tbr)
+
+	if (count > 0) {
+		if (count == 4) {
+			score += 10
+		} else if (count == 3) {
+			score += 6
+		} else if (count == 2) {
+			score += 3
+		} else if (count == 1) {
+			score += 1
+		}
+	}
+	return score
+}
+
+var x = tetrisScore([[2,0],[2,0],[2,4],[2,4],[2,4],[2,4],[2,0],[2,0],[3,8],[3,8]])
+console.log(x)
+
+
+// debug only
+function draw() {
+	var con = document.getElementById('container')
+	con.innerHTML = ''
+	for (var i = 0; i < lh; i++) {
+		for (var j = 0; j < lw; j++) {
+			if (lath[i][j] == 1) {
+				con.innerHTML += '<b>x</b>'
+			} else {
+				con.innerHTML += 'o'
+			}
+		}
+		con.innerHTML += '<br>'
+	}
+
+}
+// draw()
+window.onclick = () => {
+	isPaused = !isPaused
+}
+
+</script>
+
+</body>
+</html>
